@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 #
 #    Copyright (C) 2022  Jakub Hladik
 #
@@ -15,7 +17,6 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-#!/usr/bin/env bash
 qemu-system-x86_64 \
     -accel hvf \
     -cpu Haswell-v4 \
