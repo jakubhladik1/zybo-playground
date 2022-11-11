@@ -15,13 +15,14 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-TOP_MODULE = blinky
+TOP = blinky
+
 
 all: dump.vcd results.xml
 
-build/Vtop: ../../rtl/$(TOP_MODULE).sv
+build/Vtop: ../../rtl/$(TOP).sv
 	mkdir -p $(@D)
-	verilator -cc --build --exe -Mdir build -DCOCOTB_SIM=1 --top-module $(TOP_MODULE) \
+	verilator -cc --build --exe -Mdir build -DCOCOTB_SIM=1 --top-module $(TOP) \
 		--vpi --public-flat-rw --prefix Vtop \
 		-LDFLAGS \
 			"-Wl,-rpath,`cocotb-config --lib-dir` -L`cocotb-config --lib-dir` \
@@ -29,16 +30,17 @@ build/Vtop: ../../rtl/$(TOP_MODULE).sv
 		--trace --trace-structs --timescale 1ns/1ps \
 		`cocotb-config --share`/lib/verilator/verilator.cpp $<
 
-%.vcd %.xml: build/Vtop $(TOP_MODULE)_tb.py
+%.vcd: build/Vtop $(TOP)_tb.py
 	LIBPYTHON_LOC=`cocotb-config --libpython` \
 		PYTHONDONTWRITEBYTECODE=1 \
-		MODULE=$(TOP_MODULE)_tb \
+		MODULE=$(TOP)_tb \
 		TESTCASE= \
-		TOPLEVEL=$(TOP_MODULE) \
+		TOPLEVEL=$(TOP) \
 		TOPLEVEL_LANG=verilog \
 		build/Vtop
 
 clean:
 	rm -rf build dump.vcd results.xml
 
+.SECONDARY:
 .PHONY: all clean

@@ -15,15 +15,23 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-import cocotb
-from cocotb.clock import Clock
-from cocotb.triggers import RisingEdge, FallingEdge, Timer, ClockCycles
+if {$argc > 0} {
+    for {set i 0} {$i < $argc} {incr i} {
+        set arg [ lindex $argv $i ]
+        if {[ regexp {^BUILD_DIR=(.*)$} $arg match val ] == 1} {
+            set build_dir "[ file normalize "${val}" ]"
+        }
+        if {[ regexp {^TOP=(.*)$} $arg match val ] == 1} {
+            set top "$val"
+        }
+        if {[ regexp {^PART=(.*)$} $arg match val ] == 1} {
+            set part "$val"
+        }
+    }
+}
 
-@cocotb.test()
-async def test_blinky(dut):
-    clock = Clock(dut.clk_i, 10, units="ns")
-    cocotb.start_soon(clock.start())
-    dut.rst_i.value = 1
-    await ClockCycles(dut.clk_i, 4, rising=True)
-    dut.rst_i.value = 0
-    await ClockCycles(dut.clk_i, 100, rising=True)
+set_part -quiet ${part}
+read_verilog [ glob rtl/*.sv ]
+read_xdc "${top}_timing.xdc"
+synth_design -top ${top} -part ${part}
+write_checkpoint -force "${build_dir}/${top}_post_synth.dcp"

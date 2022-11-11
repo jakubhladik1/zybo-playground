@@ -17,87 +17,58 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-# Check if we are running on a Mac
-if [ ! "$(uname)" == "Darwin" ]; then
-    echo "This script can only be run on a Mac."
-    exit 1
-fi
-
-# Check if brew is installed
-which -s brew
-if [[ $? != 0 ]] ; then
-    echo "Installing Homebrew..."
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-else
-    echo "Updating Homebrew..."
-    brew update
-fi
-
-# Install dependencies for building
-brew install cmake python boost boost-python3 eigen bison flex gawk libffi graphviz pkg-config tcl-tk xdot perl ccache autoconf gperftools libftdi bash llvm libopm open-ocd
-
-# Create a folder for compilation of tools
 mkdir -p tools
 cd tools
 
-# Download, extract, configure, compile and install prjxray
-pip3 install Cython intervaltree junit-xml numpy openpyxl ordered-set parse progressbar2 pyjson5 pytest pytest-runner pyyaml scipy\>=1.2.1 simplejson sympy textx yapf==0.24.0
-pip3 install fasm
-git clone git@github.com:f4pga/prjxray.git
-cd prjxray
-git submodule update --init --recursive
-mkdir build
-cmake -DABSL_PROPAGATE_CXX_STD=ON ..
-make -j`sysctl -n hw.ncpu`
-sudo make install
-# Change python version as needed
-cp -r prjxray /usr/local/lib/python3.10/site-packages/
-./download-latest-db.sh
-mkdir -p /usr/local/share/next-pnr/prjxray
-cp -r utils /usr/local/share/next-pnr/prjxray/
-cp -r database /usr/local/share/nextpnr-xilinx/prjxray/
-cd ..
+sudo apt install -y xvfb libtinfo5 build-essential
 
-# Download, extract, configure, compile and install yosys
-curl -L https://github.com/YosysHQ/yosys/archive/refs/tags/yosys-0.22.tar.gz > yosys.tar.gz
-tar -xzf yosys.tar.gz
-cd yosys-*
-make config-clang
-make -j`sysctl -n hw.ncpu`
-sudo make install
-cd ..
+#
+# Install Vivado 2017.2 manually into $HOME/Xilinx
+#
 
-# Download, extract, configure, compile and install nextpnr-xilinx
-git clone git@github.com:gatecat/nextpnr-xilinx.git
-cd nextpnr-xilinx
-git submodule update --init --recursive
-cmake -DCMAKE_C_COMPILER="/usr/local/opt/llvm/bin/clang" -DCMAKE_CXX_COMPILER="/usr/local/opt/llvm/bin/clang++" -DARCH=xilinx -DBUILD_GUI=OFF .
-make -j`sysctl -n hw.ncpu`
-sudo make install
-# If you are having issues with the following, see https://github.com/gatecat/nextpnr-xilinx/issues/35#issuecomment-1304865960
-python3 xilinx/python/bbaexport.py --device xc7z020clg400-1 --bba xilinx/xc7z020clg400-1.bba
-./bbasm -l xilinx/xc7z020clg400-1.bba xilinx/xc7z020clg400-1.bin
-mkdir -p /usr/local/share/nextpnr-xilinx
-mkdir -p /usr/local/share/nextpnr-xilinx/xilinx
-cp xilinx/xc7z020.bin /usr/local/share/nextpnr-xilinx/xilinx/
-cp -r xilinx/external/prjxray-db/zynq7 /usr/local/share/nextpnr-xilinx/xilinx/
-cd ..
+# Install USB JTAG drivers
+sudo $HOME/Xilinx/Vivado/2017.2/data/xicom/cable_drivers/lin64/install_script/install_drivers
 
-# Download, extract, configure, compile and install verilator
-# cocotb currently only supports 4.106
-# curl -L https://github.com/verilator/verilator/archive/refs/tags/v5.002.tar.gz > verilator.tar.gz
-curl -L https://github.com/verilator/verilator/archive/refs/tags/v4.106.tar.gz > verilator.tar.gz
+# Fix issue with non-traditional ethernet adapter name: https://www.itzgeek.com/how-tos/linux/debian/change-default-network-name-ens33-to-old-eth0-on-debian-9.html
+sudo sed -i 's/GRUB_CMDLINE_LINUX="[^"]*/& net.ifnames=0 biosdevname=0/' /etc/default/grub
+sudo grub-mkconfig -o /boot/grub/grub.cfg
+
+# Fix issue with lmutil https://support.xilinx.com/s/question/0D52E00006iHtI4SAK/flexlm-no-such-file-or-directory?language=en_US
+sudo ln -s /lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 /lib64/ld-lsb-x86-64.so.3
+
+# Fix issue with obsolete rlwrap: https://support.xilinx.com/s/question/0D52E00006hpSCpSAM/vitis-on-wsl?language=en_US
+apt install -y --fix-broken rlwrap
+sed -i -e 's|"$RDI_BINROOT"/unwrapped/.*/rlwrap|/usr/bin/rlwrap|' $HOME/Xilinx/SDK/2017.2/bin/x*
+sed -i -e 's|"$RDI_BINROOT"/unwrapped/.*/rlwrap|/usr/bin/rlwrap|' $HOME/Xilinx/Vivado/2017.2/bin/x*
+
+# Download, compile, and install Verilator 5.002 (patched)
+sudo apt install -y git python3 python3-pip autoconf flex bison
+wget -O verilator.tar.gz "https://github.com/verilator/verilator/archive/refs/tags/v5.002.tar.gz"
 tar -xzf verilator.tar.gz
 cd verilator-*
+# cocotb 1.7.1 only supports Verilator 4.106, but a patch exists: https://github.com/verilator/verilator/issues/2778
+patch include/verilated_vpi.cpp << EOM
+--- verilator-5.002/include/verilated_vpi.cpp   2022-10-29 17:45:54.000000000 -0400
++++ verilator-5.002_patched/include/verilated_vpi.cpp   2022-11-11 17:11:52.240380059 -0500
+@@ -610,6 +610,7 @@
+             VerilatedVpiCbHolder& ho = *it;
+             VL_DEBUG_IF_PLI(VL_DBG_MSGF("- vpi: reason_callback reason=%d id=%" PRId64 "\n",
+                                         reason, ho.id()););
++            ho.invalidate();
+             (ho.cb_rtnp())(ho.cb_datap());
+             called = true;
+             if (was_last) break;
+EOM
 autoconf
-unset VERILATOR_ROOT
 ./configure
-make -j`sysctl -n hw.ncpu`
+make -j `nproc`
 sudo make install
 cd ..
 
 # Install cocotb
-pip3 install cocotb pytest
+sudo pip3 install cocotb pytest
 
-# Install gtkwave
-brew install gtkwave
+# Install OpenOCD
+sudo apt install -y openocd
+
+echo "Script finished. Reboot the machine for the new kernel parameters to take effect."

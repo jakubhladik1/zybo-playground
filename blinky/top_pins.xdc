@@ -16,8 +16,6 @@
 #
 
 set_property PACKAGE_PIN K17 [get_ports {clk_ref_i}]
-set_property PACKAGE_PIN M14 [get_ports {led_o}]
+set_property PACKAGE_PIN M14 [get_ports {led_o}] 
 set_property IOSTANDARD LVCMOS33 [get_ports {clk_ref_i}]
 set_property IOSTANDARD LVCMOS33 [get_ports {led_o}]
-
-create_clock -name clk125 -period 8.000 [get_ports {clk_ref_i}]

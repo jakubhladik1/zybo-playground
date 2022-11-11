@@ -18,8 +18,8 @@
 `default_nettype none
 
 module top (
-  input  logic       clk_ref_i,
-  output logic       led_o
+    input  logic clk_ref_i,
+    output logic led_o
 );
 
     logic clk_fb;
@@ -30,7 +30,6 @@ module top (
     logic rst_100;
 
     // Create clk_100 (100.0 MHz) from clk_ref (125 MHz)
-    // 
     PLLE2_BASE #(
         .BANDWIDTH("OPTIMIZED"),     // OPTIMIZED, HIGH, LOW
         .CLKFBOUT_MULT      (8),     // Multiply value for all CLKOUT, (2-64)

@@ -23,18 +23,18 @@ module blinky (
     output logic led_o
 );
 
-    logic [27:0] cnt_q, cnt_n;
+    logic [25:0] cnt_q, cnt_n;
     
-    assign cnt_n = cnt_q + 28'd1;
+    assign cnt_n = cnt_q + 26'd1;
     
     always_ff @(posedge clk_i, posedge rst_i) begin
         if (rst_i) begin
-            cnt_q <= 28'd0;
+            cnt_q <= 26'd0;
         end else begin
             cnt_q <= cnt_n;
         end
     end
     
-    assign led_o = cnt_q[27];
+    assign led_o = cnt_q[25];
     
 endmodule

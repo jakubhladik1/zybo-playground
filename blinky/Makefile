@@ -15,34 +15,29 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-PROJ = top
-PIN_DEF = top.xdc
-DEVICE = xc7z020clg400-1
-FAMILY = zynq7
+BUILD_DIR = build
+TOP = top
+PART = xc7z020clg400-1
 
-all: $(PROJ).bit
 
--include build/top.sv.d
+all: $(BUILD_DIR)/$(TOP).bit
 
-build/%.json: rtl/%.sv
+%_post_synth.dcp: rtl/*.sv $(TOP)_timing.xdc
 	mkdir -p $(@D)
-	yosys -E build/$*.sv.d -p 'read_verilog -sv $< ; hierarchy -top $(PROJ) -libdir rtl ; synth_xilinx -flatten -arch xc7 -top $(PROJ) ; write_json $@' 
-# yosys -E build/$*.sv.d -p 'read_verilog -sv $< ; hierarchy -top $(PROJ) -libdir rtl ; synth_xilinx -flatten -abc9 -arch xc7 -top $(PROJ) ; write_json $@' 
+	vivado -nolog -nojournal -mode batch -tempDir $(BUILD_DIR) -source scripts/do_synth.tcl -tclargs TOP=$(TOP) PART=$(PART) BUILD_DIR=$(BUILD_DIR)
 
-%.frames: %.fasm $(PIN_DEF)
-	python3 /usr/local/share/next-pnr/prjxray/utils/fasm2frames.py --part $(DEVICE) --db-root /usr/local/share/nextpnr-xilinx/database/$(FAMILY) $< > $@
-	
-%.fasm: $(PIN_DEF) %.json
-	nextpnr-xilinx --chipdb /usr/local/share/nextpnr-xilinx/xilinx/$(DEVICE).bin --xdc $< --json $*.json --write $*_routed.json --fasm $@
+%_post_layout.dcp: %_post_synth.dcp $(TOP)_pins.xdc
+	vivado -nolog -nojournal -mode batch -tempDir $(BUILD_DIR) -source scripts/do_layout.tcl -tclargs TOP=$(TOP) PART=$(PART) BUILD_DIR=$(BUILD_DIR)
 
-%.bit: build/%.frames
-	xc7frames2bit --part_file /usr/local/share/nextpnr-xilinx/database/$(FAMILY)/$(DEVICE)/part.yaml --part_name $(DEVICE) --frm_file $< --output_file $@
+%.bit: %_post_layout.dcp
+	vivado -nolog -nojournal -mode batch -tempDir $(BUILD_DIR) -source scripts/do_bitstream.tcl -tclargs TOP=$(TOP) PART=$(PART) BUILD_DIR=$(BUILD_DIR)
+	rm -f usage_statistics_webtalk.html usage_statistics_webtalk.xml
 
-prog: $(PROJ).bit
-	openocd -f interface/ftdi/digilent-hs1.cfg -f target/zynq_7000.cfg -c "adapter speed 10000" -c "init" -c "pld load 0 $<" -c "shutdown"
+prog: $(BUILD_DIR)/$(TOP).bit
+	openocd -f interface/ftdi/digilent-hs1.cfg -f target/zynq_7000.cfg -c "adapter speed 10000 ; init ; pld load 0 $< ; shutdown"
 
 clean:
-	rm -rf build $(PROJ).bit
+	rm -rf $(BUILD_DIR) usage_statistics_webtalk.html usage_statistics_webtalk.xml
 
 .SECONDARY:
 .PHONY: all prog clean

@@ -15,15 +15,4 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-import cocotb
-from cocotb.clock import Clock
-from cocotb.triggers import RisingEdge, FallingEdge, Timer, ClockCycles
-
-@cocotb.test()
-async def test_blinky(dut):
-    clock = Clock(dut.clk_i, 10, units="ns")
-    cocotb.start_soon(clock.start())
-    dut.rst_i.value = 1
-    await ClockCycles(dut.clk_i, 4, rising=True)
-    dut.rst_i.value = 0
-    await ClockCycles(dut.clk_i, 100, rising=True)
+create_clock -name clk125 -period 8.000 [get_ports {clk_ref_i}]
