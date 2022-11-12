@@ -18,7 +18,7 @@
 TOP = blinky
 
 
-all: dump.vcd results.xml
+all: build/Vtop run
 
 build/Vtop: ../../rtl/$(TOP).sv
 	mkdir -p $(@D)
@@ -30,7 +30,7 @@ build/Vtop: ../../rtl/$(TOP).sv
 		--trace --trace-structs --timescale 1ns/1ps \
 		`cocotb-config --share`/lib/verilator/verilator.cpp $<
 
-%.vcd: build/Vtop $(TOP)_tb.py
+run: build/Vtop $(TOP)_tb.py
 	LIBPYTHON_LOC=`cocotb-config --libpython` \
 		PYTHONDONTWRITEBYTECODE=1 \
 		MODULE=$(TOP)_tb \
@@ -43,4 +43,4 @@ clean:
 	rm -rf build dump.vcd results.xml
 
 .SECONDARY:
-.PHONY: all clean
+.PHONY: all clean run

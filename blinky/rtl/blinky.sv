@@ -17,24 +17,26 @@
 
 `default_nettype none
 
-module blinky (
+module blinky #(
+    parameter CWIDTH = 4
+) (
     input  logic clk_i,
     input  logic rst_i,
     output logic led_o
 );
 
-    logic [25:0] cnt_q, cnt_n;
+    logic [CWIDTH-1:0] cnt_q, cnt_n;
     
-    assign cnt_n = cnt_q + 26'd1;
+    assign cnt_n = cnt_q + 1'b1;
     
     always_ff @(posedge clk_i, posedge rst_i) begin
         if (rst_i) begin
-            cnt_q <= 26'd0;
+            cnt_q <='0;
         end else begin
             cnt_q <= cnt_n;
         end
     end
     
-    assign led_o = cnt_q[25];
+    assign led_o = cnt_q[CWIDTH-1];
     
 endmodule

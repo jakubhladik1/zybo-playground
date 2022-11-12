@@ -96,7 +96,9 @@ module top (
         end
     end
     
-    blinky inst_blinky (
+    blinky #(
+        .CWIDTH (26)
+    ) inst_blinky (
         .clk_i (clk_100),
         .rst_i (rst_100),
         .led_o (led_o)
