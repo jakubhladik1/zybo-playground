@@ -30,53 +30,84 @@ module top (
     logic rst_100;
 
     // Create clk_100 (100.0 MHz) from clk_ref (125 MHz)
+    //
+    // From Xilinx UG953 (2022-10-19):
+    //
+    //     F_OUT = (F_CLKIN*M)/(D*O)
+    //
+    //     F_CLKIN = 125, M = 8, D = 1, O = 10
+    //     100 = (125*8)/(4*10)
+    //
+    // From Xilinx DS187 (v1.21) for -1C speed grade:
+    //     F_IN        : [19.0 MHz - 800.0 MHz]
+    //     F_INJITTER  : < 20% of clock input period or 1 ns max
+    //     F_VCO       : [800.0 MHz - 1600.0 MHz]
+    //     PLL_BWLOW   : 1 MHz
+    //     PLL_BWHIGH  : 4 MHz
+    //     PLL_LOCKMAX : 100 us
+    //     PLL_OUTMAX  : 800.0 MHz
+    //     PLL_OUTMIN  : 6.25 MHz
+    //     PLL_FPFDMAX : 550 MHz
+    //     PLL_FPFDMIN : 19 MHz
+    //
     PLLE2_BASE #(
-        .BANDWIDTH("OPTIMIZED"),     // OPTIMIZED, HIGH, LOW
-        .CLKFBOUT_MULT      (8),     // Multiply value for all CLKOUT, (2-64)
-        .CLKFBOUT_PHASE     (0.0),   // Phase offset in degrees of CLKFB, (-360.000-360.000).
-        .CLKIN1_PERIOD      (8.000), // Input clock period in ns to ps resolution (i.e. 33.333 is 30 MHz).
-        // CLKOUT0_DIVIDE - CLKOUT5_DIVIDE: Divide amount for each CLKOUT (1-128)
+        // PLL bandwidth (OPTIMIZED, HIGH, LOW)
+        .BANDWIDTH          ("OPTIMIZED"),
+        // Multiply value for all CLKOUT (2-64)
+        .CLKFBOUT_MULT      (8),
+        // Phase offset in degrees of CLKFB (-360.000-360.000)
+        .CLKFBOUT_PHASE     (0.0),
+        // Input clock period in ns to ps resolution (i.e. 33.333 is 30 MHz)
+        .CLKIN1_PERIOD      (8.000),
+        // Divide amount for each CLKOUT (1-128)
         .CLKOUT0_DIVIDE     (10),
         .CLKOUT1_DIVIDE     (1),
         .CLKOUT2_DIVIDE     (1),
         .CLKOUT3_DIVIDE     (1),
         .CLKOUT4_DIVIDE     (1),
         .CLKOUT5_DIVIDE     (1),
-        // CLKOUT0_DUTY_CYCLE - CLKOUT5_DUTY_CYCLE: Duty cycle for each CLKOUT (0.001-0.999).
+        // Duty cycle for each CLKOUT (0.001-0.999)
         .CLKOUT0_DUTY_CYCLE (0.5),
         .CLKOUT1_DUTY_CYCLE (0.5),
         .CLKOUT2_DUTY_CYCLE (0.5),
         .CLKOUT3_DUTY_CYCLE (0.5),
         .CLKOUT4_DUTY_CYCLE (0.5),
         .CLKOUT5_DUTY_CYCLE (0.5),
-        // CLKOUT0_PHASE - CLKOUT5_PHASE: Phase offset for each CLKOUT (-360.000-360.000).
-        .CLKOUT0_PHASE(0.0),
-        .CLKOUT1_PHASE(0.0),
-        .CLKOUT2_PHASE(0.0),
-        .CLKOUT3_PHASE(0.0),
-        .CLKOUT4_PHASE(0.0),
-        .CLKOUT5_PHASE(0.0),
-        .DIVCLK_DIVIDE(1),        // Master division value, (1-56)
-        .REF_JITTER1(0.0),        // Reference input jitter in UI, (0.000-0.999).
-        .STARTUP_WAIT("FALSE")    // Delay DONE until PLL Locks, ("TRUE"/"FALSE")
+        // Phase offset for each CLKOUT (-360.000-360.000)
+        .CLKOUT0_PHASE      (0.0),
+        .CLKOUT1_PHASE      (0.0),
+        .CLKOUT2_PHASE      (0.0),
+        .CLKOUT3_PHASE      (0.0),
+        .CLKOUT4_PHASE      (0.0),
+        .CLKOUT5_PHASE      (0.0),
+        // Master division value (1-56)
+        .DIVCLK_DIVIDE      (1),
+        // Reference input jitter in UI (0.000-0.999)
+        .REF_JITTER1        (0.0),
+        // Delay DONE until PLL locks ("TRUE"/"FALSE")
+        .STARTUP_WAIT       ("FALSE")
     )
     inst_plle2_base (
-        // Clock Outputs: 1-bit (each) output: User configurable clock outputs
-        .CLKOUT0  (clk_100_raw),    // 1-bit output: CLKOUT0
-        .CLKOUT1  ( ),              // 1-bit output: CLKOUT1
-        .CLKOUT2  ( ),              // 1-bit output: CLKOUT2
-        .CLKOUT3  ( ),              // 1-bit output: CLKOUT3
-        .CLKOUT4  ( ),              // 1-bit output: CLKOUT4
-        .CLKOUT5  ( ),              // 1-bit output: CLKOUT5
-        // Feedback Clocks: 1-bit (each) output: Clock feedback ports
-        .CLKFBOUT (clk_fb),         // 1-bit output: Feedback clock
-        .LOCKED   (clk_100_locked), // 1-bit output: LOCK
-        .CLKIN1   (clk_ref_i),      // 1-bit input: Input clock
-        // Control Ports: 1-bit (each) input: PLL control ports
-        .PWRDWN   (1'b0),           // 1-bit input: Power-down
-        .RST      (1'b0),           // 1-bit input: Reset
-        // Feedback Clocks: 1-bit (each) input: Clock feedback ports
-        .CLKFBIN  (clk_fb)          // 1-bit input: Feedback clock
+        // User configurable clock outputs
+        .CLKOUT0  (clk_100_raw),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .CLKOUT1  ( ),
+        .CLKOUT2  ( ),
+        .CLKOUT3  ( ),
+        .CLKOUT4  ( ),
+        .CLKOUT5  ( ),
+        /* verilator lint_on PINCONNECTEMPTY */
+        // Feedback clock output
+        .CLKFBOUT (clk_fb),
+        // PLL locked output
+        .LOCKED   (clk_100_locked),
+        // Input clock
+        .CLKIN1   (clk_ref_i),
+        // Control ports
+        .PWRDWN   (1'b0),
+        .RST      (1'b0),
+        // Feedback clock input
+        .CLKFBIN  (clk_fb)
     );
 
     // Buffer the generated clk_100
