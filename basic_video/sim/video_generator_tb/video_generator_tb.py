@@ -19,9 +19,17 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, FallingEdge, ClockCycles
 
+import numpy as np
+from PIL import Image
+
+
 @cocotb.test()
 async def test_video_generator(dut):
-    
+
+    frame = np.zeros((dut.NUM_ROW_ACTIVE.value.integer, dut.NUM_COL_ACTIVE.value.integer, 3), dtype=np.uint8)
+    row = 0
+    col = 0
+
     # Assert reset
     dut.rst_i.setimmediatevalue(1)
 
@@ -34,6 +42,25 @@ async def test_video_generator(dut):
 
     # Deassert reset synchronously with clk_i
     dut.rst_i.value = 0
-    
-    # Wait a bit to see waveforms
-    await ClockCycles(dut.clk_i, 100)
+
+    while True:
+        if dut.de_o.value:
+            frame[row, col] = dut.pix_o.value.integer
+
+            if row == 0 or row == (dut.NUM_ROW_ACTIVE.value.integer-1) or col == 0 or col == dut.NUM_COL_ACTIVE.value.integer-1:
+                assert dut.pix_o.value == 0xfff
+            else:
+                assert dut.pix_o.value == 0x000
+            
+            if (col == (dut.NUM_COL_ACTIVE.value.integer-1)):
+                if (row == (dut.NUM_ROW_ACTIVE.value.integer-1)):
+                    break
+                row += 1
+                col = 0
+            else:
+                col += 1
+        await RisingEdge(dut.clk_i)
+
+    img = Image.fromarray(frame, "RGB")
+    img.save("frame.png")
+

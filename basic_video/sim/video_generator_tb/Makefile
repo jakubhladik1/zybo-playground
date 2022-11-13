@@ -40,7 +40,7 @@ run: build/Vtop $(TOP)_tb.py
 		build/Vtop
 
 clean:
-	rm -rf build dump.vcd results.xml
+	rm -rf build dump.vcd results.xml frame.png
 
 .SECONDARY:
 .PHONY: all clean run
