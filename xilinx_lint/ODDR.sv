@@ -17,12 +17,23 @@
 
 `default_nettype none
 
-module BUFG (
+module ODDR #(
+    /* verilator lint_off UNUSED */
+    parameter       DDR_CLK_EDGE = "OPPOSITE_EDGE",
+    parameter [0:0] INIT         = 1'b0,
+    parameter       SRTYPE       = "SYNC"
+    /* verilator lint_on UNUSED */
+) (
     /* verilator lint_off UNUSED */
     /* verilator lint_off UNDRIVEN */
-    output      logic O,
+    output      logic Q,
     /* verilator lint_on UNDRIVEN */
-    input  wire logic I
+    input  wire logic C,
+    input  wire logic CE,
+    input  wire logic D1,
+    input  wire logic D2,    
+    input  wire logic R,
+    input  wire logic S
     /* verilator lint_on UNUSED */
 );
 

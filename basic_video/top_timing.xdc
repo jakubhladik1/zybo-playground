@@ -15,24 +15,4 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-if {$argc > 0} {
-    for {set i 0} {$i < $argc} {incr i} {
-        set arg [ lindex $argv $i ]
-        if {[ regexp {^BUILD_DIR=(.*)$} $arg match val ] == 1} {
-            set build_dir "[ file normalize "${val}" ]"
-        }
-        if {[ regexp {^TOP=(.*)$} $arg match val ] == 1} {
-            set top "$val"
-        }
-        if {[ regexp {^PART=(.*)$} $arg match val ] == 1} {
-            set part "$val"
-        }
-    }
-}
-
-set_param general.maxThreads 2
-set_part -quiet ${part}
-read_verilog -sv [ glob rtl/*.sv ]
-read_xdc "${top}_timing.xdc"
-synth_design -top ${top} -part ${part}
-write_checkpoint -force "${build_dir}/${top}_post_synth.dcp"
+create_clock -name clk125 -period 8.000 [get_ports {clk_ref_i}]

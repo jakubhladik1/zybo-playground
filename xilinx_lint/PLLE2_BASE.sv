@@ -48,19 +48,19 @@ module PLLE2_BASE #(
 )(
     /* verilator lint_off UNUSED */
     /* verilator lint_off UNDRIVEN */
-    output logic CLKFBOUT,
-    output logic CLKOUT0,
-    output logic CLKOUT1,
-    output logic CLKOUT2,
-    output logic CLKOUT3,
-    output logic CLKOUT4,
-    output logic CLKOUT5,
-    output logic LOCKED,
+    output      logic CLKFBOUT,
+    output      logic CLKOUT0,
+    output      logic CLKOUT1,
+    output      logic CLKOUT2,
+    output      logic CLKOUT3,
+    output      logic CLKOUT4,
+    output      logic CLKOUT5,
+    output      logic LOCKED,
     /* verilator lint_on UNDRIVEN */
-    input  logic CLKFBIN,
-    input  logic CLKIN1,
-    input  logic PWRDWN,
-    input  logic RST
+    input  wire logic CLKFBIN,
+    input  wire logic CLKIN1,
+    input  wire logic PWRDWN,
+    input  wire logic RST
     /* verilator lint_on UNUSED */
 );
 

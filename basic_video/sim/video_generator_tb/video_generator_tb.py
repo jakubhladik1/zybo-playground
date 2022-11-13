@@ -15,24 +15,25 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-if {$argc > 0} {
-    for {set i 0} {$i < $argc} {incr i} {
-        set arg [ lindex $argv $i ]
-        if {[ regexp {^BUILD_DIR=(.*)$} $arg match val ] == 1} {
-            set build_dir "[ file normalize "${val}" ]"
-        }
-        if {[ regexp {^TOP=(.*)$} $arg match val ] == 1} {
-            set top "$val"
-        }
-        if {[ regexp {^PART=(.*)$} $arg match val ] == 1} {
-            set part "$val"
-        }
-    }
-}
+import cocotb
+from cocotb.clock import Clock
+from cocotb.triggers import RisingEdge, FallingEdge, ClockCycles
 
-set_param general.maxThreads 2
-set_part -quiet ${part}
-read_verilog -sv [ glob rtl/*.sv ]
-read_xdc "${top}_timing.xdc"
-synth_design -top ${top} -part ${part}
-write_checkpoint -force "${build_dir}/${top}_post_synth.dcp"
+@cocotb.test()
+async def test_video_generator(dut):
+    
+    # Assert reset
+    dut.rst_i.setimmediatevalue(1)
+
+    # Create clock
+    clock = Clock(dut.clk_i, 10, units="ns")
+    cocotb.start_soon(clock.start())
+
+    # Hold reset asserted for four clock cycles
+    await ClockCycles(dut.clk_i, 4)
+
+    # Deassert reset synchronously with clk_i
+    dut.rst_i.value = 0
+    
+    # Wait a bit to see waveforms
+    await ClockCycles(dut.clk_i, 100)

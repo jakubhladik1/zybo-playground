@@ -17,10 +17,16 @@
 
 `default_nettype none
 
-module BUFG (
+module OBUFDS #(
+    /* verilator lint_off UNUSED */
+    parameter IOSTANDARD = "DEFAULT",
+    parameter SLEW       = "SLOW"
+    /* verilator lint_on UNUSED */
+) (
     /* verilator lint_off UNUSED */
     /* verilator lint_off UNDRIVEN */
     output      logic O,
+    output      logic OB,
     /* verilator lint_on UNDRIVEN */
     input  wire logic I
     /* verilator lint_on UNUSED */

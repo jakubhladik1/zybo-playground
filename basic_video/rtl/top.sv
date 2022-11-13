@@ -18,8 +18,12 @@
 `default_nettype none
 
 module top (
-    input  wire logic clk_ref_i,
-    output      logic led_o
+    input  wire logic       clk_ref_i,
+    output      logic [2:0] tmds_data_po,
+    output      logic [2:0] tmds_data_no,
+    output      logic       tmds_clk_po,
+    output      logic       tmds_clk_no,
+    output      logic       led_o
 );
 
     logic clk_fb;
@@ -27,6 +31,15 @@ module top (
     logic clk_100_locked;
     logic clk_100; 
     (* ASYNC_REG = "TRUE" *) logic rst_100_meta, rst_100_sync;
+
+    logic [2:0] tmds_data;
+    logic clk_pix;
+    logic rst_pix;
+
+    logic        vgen_de;
+    logic [11:0] vgen_pix;
+
+    logic clk_pix_ddr;
 
     // Create clk_100 (100.0 MHz) from clk_ref (125 MHz)
     //
@@ -132,6 +145,82 @@ module top (
         .clk_i (clk_100),
         .rst_i (rst_100_sync),
         .led_o (led_o)
+    );
+
+    dvi_tx_simple inst_dvi_tx_simple (
+        .clk_ref_i   (clk_100),
+        .rst_i       (rst_100_sync),
+        .de_i        (vgen_de),
+        .pix_i       (vgen_pix),
+        .clk_pxl_o   (clk_pix),
+        .rst_pxl_o   (rst_pix),
+        .tmds_data_o (tmds_data)
+    );
+
+    video_generator #(
+        .NUM_COL_TOTAL  (11'd1056),
+        .NUM_COL_ACTIVE (11'd800),
+        .NUM_ROW_TOTAL  (11'd628),
+        .NUM_ROW_ACTIVE (11'd600)
+    ) inst_video_generator (
+        .clk_i (clk_pix),
+        .rst_i (rst_pix),
+        .de_o  (vgen_de),
+        .pix_o (vgen_pix)
+);
+
+    OBUFDS #(
+        .IOSTANDARD ("TMDS_33"),
+        .SLEW       ("SLOW")
+    ) inst_obufds_tmds_data_0 (
+        .O  (tmds_data_po[0]),
+        .OB (tmds_data_no[0]),
+        .I  (tmds_data[0])
+    );
+
+    OBUFDS #(
+        .IOSTANDARD ("TMDS_33"),
+        .SLEW       ("SLOW")
+    ) inst_obufds_tmds_data_1 (
+        .O  (tmds_data_po[1]),
+        .OB (tmds_data_no[1]),
+        .I  (tmds_data[1])
+    );
+
+    OBUFDS #(
+        .IOSTANDARD ("TMDS_33"),
+        .SLEW       ("SLOW")
+    ) inst_obufds_tmds_data_2 (
+        .O  (tmds_data_po[2]),
+        .OB (tmds_data_no[2]),
+        .I  (tmds_data[2])
+    );
+
+    ODDR #(
+        .DDR_CLK_EDGE ("OPPOSITE_EDGE"), 
+        .INIT         (1'b0),
+        .SRTYPE       ("ASYNC")
+    ) inst_oddr_tmds_clk (
+        .Q  (clk_pix_ddr),
+        .C  (clk_pix),
+        .CE (1'b1),
+        .D1 (1'b1),
+        .D2 (1'b0),
+        .R  (rst_pix),
+        .S  (1'b0)
+    );
+
+    OBUFDS #(
+        .IOSTANDARD ("TMDS_33"),
+        .SLEW       ("SLOW")
+    ) inst_obufds_tmds_clk (
+        .O  (tmds_clk_po),
+        .OB (tmds_clk_no),
+        .I  (clk_pix_ddr)
+    );
+
+    // PS7 Block is required in Zynq PL builds
+    ps7_null inst_ps7_null (
     );
 
 endmodule
