@@ -45,13 +45,9 @@ async def test_video_generator(dut):
 
     while True:
         if dut.de_o.value:
-            frame[row, col] = dut.pix_o.value.integer
-
-            if row == 0 or row == (dut.NUM_ROW_ACTIVE.value.integer-1) or col == 0 or col == dut.NUM_COL_ACTIVE.value.integer-1:
-                assert dut.pix_o.value == 0xfff
-            else:
-                assert dut.pix_o.value == 0x000
-            
+            frame[row, col, 0] = ((dut.pix_o.value.integer >> 0) & 0xf) << 4
+            frame[row, col, 1] = ((dut.pix_o.value.integer >> 4) & 0xf) << 4
+            frame[row, col, 2] = ((dut.pix_o.value.integer >> 8) & 0xf) << 4
             if (col == (dut.NUM_COL_ACTIVE.value.integer-1)):
                 if (row == (dut.NUM_ROW_ACTIVE.value.integer-1)):
                     break

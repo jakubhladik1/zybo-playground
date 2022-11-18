@@ -71,11 +71,17 @@ module video_generator #(
     // Create data enable signal when in active area
     assign de_d = row_active && col_active;
 
-    // Create a white inner border
-    assign pix_d = row_q == 0                  ||
-                   row_q == (NUM_ROW_ACTIVE-1) ||
-                   col_q == 0                  ||
-                   col_q == (NUM_COL_ACTIVE-1) ? 12'hfff : 12'h000;
+    // // Create Shierpinsky triangle
+    // assign pix_d = ((row_q & col_q) > 0) ? 12'hfff : 12'h000;
+
+    // // Create a white inner border
+    // assign pix_d = row_q == 0                  ||
+    //                row_q == (NUM_ROW_ACTIVE-1) ||
+    //                col_q == 0                  ||
+    //                col_q == (NUM_COL_ACTIVE-1) ? 12'hfff : 12'h000;
+
+    // Create a gradient pattern
+    assign pix_d = {col_q[3:0], row_q[3:0], 4'hf};
 
     always_ff @(posedge clk_i, posedge rst_i) begin
         if (rst_i) begin
