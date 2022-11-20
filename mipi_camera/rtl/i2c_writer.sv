@@ -20,13 +20,16 @@
 module i2c_writer(
     input  wire logic clk_i,
     input  wire logic rst_i,
+    input  wire logic trig_i,
     output      logic sda_o,
-    output      logic scl_o
+    output      logic scl_o,
+    output      logic done_o
 );
     parameter CLK_FREQ_HZ = 1_000_000;
     parameter SCL_FREQ_HZ =   100_000;
     parameter [7:0] SLAVE_ADDR = 8'h78;
-    parameter [24:0] WRITE_TABLE [0:4] = {
+    parameter NUM_WRITES = 5;
+    parameter [24:0] WRITE_TABLE [0:NUM_WRITES-1] = {
         {1'b0, 16'h3008, 8'h42},
         {1'b0, 16'h3103, 8'h03},
         {1'b0, 16'h3017, 8'h00},
@@ -59,23 +62,94 @@ module i2c_writer(
         SCL_IDLE
     };
     
-    localparam [77:0] PRG_PARALLEL_LOAD = '1;
-    localparam [$clog2(CLK_FREQ_HZ/SCL_FREQ_HZ*2)-1:0] DLY_CNT = $clog2(CLK_FREQ_HZ/SCL_FREQ_HZ*2)'(CLK_FREQ_HZ/SCL_FREQ_HZ*2);
+    localparam [$clog2(CLK_FREQ_HZ/(SCL_FREQ_HZ*2))-1:0] DLY_CNT = $clog2(CLK_FREQ_HZ/(SCL_FREQ_HZ*2))'(CLK_FREQ_HZ/(SCL_FREQ_HZ*2));
 
-    logic [$clog2(CLK_FREQ_HZ/SCL_FREQ_HZ*2)-1:0] dly_cnt_q, dly_cnt_d;
+    logic [$clog2(CLK_FREQ_HZ/(SCL_FREQ_HZ*2))-1:0] dly_cnt_q, dly_cnt_d;
     logic [77:0] shift_sda_q, shift_sda_d;
     logic [77:0] shift_scl_q, shift_scl_d;
     logic [77:0] shift_prg_q, shift_prg_d;
     logic [77:0] sda_parallel_load;
-    logic busy;
     logic last;
+    logic last_d, last_q;
     logic [15:0] addr;
     logic [7:0] data;
-    logic [2:0] index_q, index_d;
+    logic done;
+    logic [$clog2(NUM_WRITES)-1:0] index_q, index_d;
 
-    assign index_d = last  ? index_q     :
-                     !busy ? index_q + 1 : 
-                             index_q;
+
+    typedef enum {
+        IDLE,
+        LOAD,
+        SHIFT,
+        DONE
+    } state_e;
+
+    state_e state_q, state_d;
+
+    always_ff @(posedge clk_i, posedge rst_i) begin
+        if (rst_i) begin
+            state_q <= IDLE;
+        end else begin
+            state_q <= state_d;
+        end
+    end
+
+    always_comb begin
+        
+        state_d     = state_q;
+        shift_sda_d = shift_sda_q;
+        shift_scl_d = shift_scl_q;
+        shift_prg_d = shift_prg_q;
+        dly_cnt_d   = dly_cnt_q;
+        last_d      = last_q;
+        done        = '0;
+        index_d     = index_q;
+
+        case (state_q)
+
+            IDLE: begin
+                if (trig_i) begin
+                    state_d = LOAD;
+                end
+            end
+
+            LOAD: begin
+                state_d     = SHIFT;
+                shift_sda_d = sda_parallel_load;
+                shift_scl_d = SCL_PARALLEL_LOAD;
+                shift_prg_d = '1;
+                dly_cnt_d   = '0;
+                last_d      = last;
+            end
+
+            SHIFT: begin
+                dly_cnt_d   = dly_cnt_q + 1'b1;
+                if (dly_cnt_q == (DLY_CNT-1)) begin
+                    shift_sda_d = {shift_sda_q[76:0], 1'b1};
+                    shift_scl_d = {shift_scl_q[76:0], 1'b1};
+                    shift_prg_d = {shift_prg_q[76:0], 1'b0};
+                    dly_cnt_d   = '0;
+                    if (!shift_prg_q[77]) begin
+                        if (last_q) begin
+                            state_d = DONE;
+                        end else begin
+                            state_d = LOAD;
+                            index_d = index_q + 1'b1;
+                        end
+                    end
+                end
+            end
+
+            DONE: begin 
+                done = '1;
+            end
+
+            default: begin
+                state_d = LOAD;
+            end
+
+        endcase
+    end
 
     assign {last, addr, data} = WRITE_TABLE[index_q];
     
@@ -105,24 +179,6 @@ module i2c_writer(
         SDA_IDLE
     };
     
-    assign dly_cnt_d = !busy                    ? '0 :
-                       dly_cnt_q == (DLY_CNT-1) ? '0 :
-                                                  dly_cnt_q + 1'b1;
-    
-    assign shift_sda_d = !busy                    ? sda_parallel_load         : 
-                         dly_cnt_q == (DLY_CNT-1) ? {shift_sda_q[76:0], 1'b1} : 
-                                                    shift_sda_q;
-    
-    assign shift_scl_d = !busy                    ? SCL_PARALLEL_LOAD         : 
-                         dly_cnt_q == (DLY_CNT-1) ? {shift_scl_q[76:0], 1'b1} : 
-                                                    shift_scl_q;
-    
-    assign shift_prg_d = !busy                    ? PRG_PARALLEL_LOAD         : 
-                         dly_cnt_q == (DLY_CNT-1) ? {shift_prg_q[76:0], 1'b0} : 
-                                                    shift_prg_q;
-    
-    assign busy = shift_prg_q[77];
-    
     always_ff @(posedge clk_i, posedge rst_i) begin
         if (rst_i) begin
             dly_cnt_q   <= '0;
@@ -130,16 +186,19 @@ module i2c_writer(
             shift_scl_q <= '1;
             shift_prg_q <= '0;
             index_q     <= '0;
+            last_q      <= '0;
         end else begin
             dly_cnt_q   <= dly_cnt_d;
             shift_sda_q <= shift_sda_d;
             shift_scl_q <= shift_scl_d;
             shift_prg_q <= shift_prg_d;
             index_q     <= index_d;
+            last_q      <= last_d;
         end
     end
     
-    assign sda_o = shift_sda_q[77];
-    assign scl_o = shift_scl_q[77];
+    assign sda_o  = shift_sda_q[77];
+    assign scl_o  = shift_scl_q[77];
+    assign done_o = done;
 
 endmodule

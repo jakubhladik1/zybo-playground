@@ -35,3 +35,13 @@ set_property IOSTANDARD TMDS_33 [get_ports {tmds_data_no[2]}]
 set_property IOSTANDARD TMDS_33 [get_ports {tmds_clk_po}]
 set_property IOSTANDARD TMDS_33 [get_ports {tmds_clk_no}]
 set_property IOSTANDARD LVCMOS33 [get_ports {led_o}]
+
+set_property PACKAGE_PIN F19 [get_ports {sda_o}]
+set_property PACKAGE_PIN F20 [get_ports {scl_o}]
+set_property PACKAGE_PIN G20 [get_ports {pwrup_o}]
+
+set_property IOSTANDARD LVCMOS33 [get_ports {sda_o}]
+set_property IOSTANDARD LVCMOS33 [get_ports {scl_o}]
+set_property IOSTANDARD LVCMOS33 [get_ports {pwrup_o}]
+
+set_property PULLUP true [get_ports {pwrup_o}]

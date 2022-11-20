@@ -18,24 +18,20 @@
 `default_nettype none
 
 module top (
-    input  wire logic       clk_ref_i,
-    output      logic       led_o
+    input  wire logic clk_ref_i,
+    output      logic led_o,
+    output      logic sda_o,
+    output      logic scl_o,
+    output      logic pwrup_o
 );
 
     logic clk_fb;
     logic clk_100_raw; 
     logic clk_100_locked;
-    logic clk_100; 
+    logic clk_100;
     (* ASYNC_REG = "TRUE" *) logic rst_100_meta, rst_100_sync;
 
-    logic [2:0] tmds_data;
-    logic clk_pix;
-    logic rst_pix;
-
-    logic        vgen_de;
-    logic [11:0] vgen_pix;
-
-    logic clk_pix_ddr;
+    logic scl, sda;
 
     // Create clk_100 (100.0 MHz) from clk_ref (125 MHz)
     //
@@ -146,5 +142,95 @@ module top (
     // PS7 Block is required in Zynq PL builds
     ps7_null inst_ps7_null (
     );
+
+
+     logic [23:0] cnt_q;
+     always_ff @(posedge clk_100, posedge rst_100_sync) begin
+        if (rst_100_sync) begin
+            cnt_q <= '0;
+        end else begin
+            cnt_q <= cnt_q + 1'b1;
+        end
+    end
+
+    i2c_writer #(
+        .CLK_FREQ_HZ (100_000_000),
+        .SCL_FREQ_HZ (400_000),
+        .SLAVE_ADDR (8'h78),
+        .NUM_WRITES (44),
+        .WRITE_TABLE ({
+            {1'b0, 16'h3008, 8'h42},
+
+            {1'b0, 16'h300E, 8'h45},
+
+            {1'b0, 16'h3017, 8'h00},
+            {1'b0, 16'h3018, 8'h00},
+
+            {1'b0, 16'h302E, 8'h08},
+
+            {1'b0, 16'h3034, 8'h1A},
+            {1'b0, 16'h3035, 8'h21},
+            {1'b0, 16'h3036, 8'h46},
+            {1'b0, 16'h3037, 8'h05},
+
+            {1'b0, 16'h303B, 8'h19},
+
+            {1'b0, 16'h303D, 8'h10},
+
+            {1'b0, 16'h3103, 8'h03},
+            {1'b0, 16'h3108, 8'h11},
+
+            {1'b0, 16'h3800, 8'h00},
+            {1'b0, 16'h3801, 8'h00},
+            {1'b0, 16'h3802, 8'h00},
+            {1'b0, 16'h3803, 8'h08},
+
+            {1'b0, 16'h3804, 8'h0A},
+            {1'b0, 16'h3805, 8'h3B},
+            {1'b0, 16'h3806, 8'h07},
+            {1'b0, 16'h3807, 8'h9B},
+
+            {1'b0, 16'h3808, 8'h05},
+            {1'b0, 16'h3809, 8'h00},
+            {1'b0, 16'h380A, 8'h02},
+            {1'b0, 16'h380B, 8'hD0},
+
+            {1'b0, 16'h380C, 8'h07},
+            {1'b0, 16'h380D, 8'h68},
+            {1'b0, 16'h380E, 8'h03},
+            {1'b0, 16'h380F, 8'hD8},
+
+            {1'b0, 16'h3810, 8'h00},
+            {1'b0, 16'h3811, 8'h00},
+            {1'b0, 16'h3812, 8'h00},
+            {1'b0, 16'h3813, 8'h00},
+
+            {1'b0, 16'h3814, 8'h31},
+            {1'b0, 16'h3815, 8'h31},
+
+            {1'b0, 16'h3821, 8'h01},
+            {1'b0, 16'h3824, 8'h01},
+
+            {1'b0, 16'h4837, 8'h24},
+            {1'b0, 16'h4300, 8'h00},
+            {1'b0, 16'h4800, 8'h14},
+            {1'b0, 16'h5001, 8'h02},
+            {1'b0, 16'h501F, 8'h03},
+            {1'b0, 16'h503D, 8'h80},
+            
+            {1'b1, 16'h3008, 8'h02}
+        })
+    ) inst_i2c_writer (
+        .clk_i  (clk_100),
+        .rst_i  (rst_100_sync),
+        .trig_i (cnt_q[23]),
+        .sda_o  (sda),
+        .scl_o  (scl),
+        .done_o ( )
+    );
+
+    assign sda_o = sda ? 1'bz : 1'b0;
+    assign scl_o = scl ? 1'bz : 1'b0;
+    assign pwrup_o = 1'b1;
 
 endmodule
